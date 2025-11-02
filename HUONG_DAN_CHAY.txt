@@ -1,0 +1,86 @@
+═══════════════════════════════════════════════════════════
+  HƯỚNG DẪN CHẠY DỰ ÁN ADMIN DASHBOARD
+═══════════════════════════════════════════════════════════
+
+BƯỚC 1: KIỂM TRA MÔI TRƯỜNG
+───────────────────────────────────────────────────────────
+✓ PHP >= 7.4 (kiểm tra: php -v trong CMD)
+✓ MySQL/MariaDB đã cài đặt và đang chạy
+✓ Web server (XAMPP/WAMP/LAMP hoặc PHP Built-in Server)
+
+BƯỚC 2: CẤU HÌNH DATABASE
+───────────────────────────────────────────────────────────
+1. Mở phpMyAdmin hoặc MySQL client
+2. Tạo database tên: telegram_bot_system
+   (hoặc database của bạn đã có sẵn)
+
+3. Import SQL schema vào database:
+   - Copy toàn bộ SQL code bạn đã cung cấp
+   - Paste vào SQL tab trong phpMyAdmin
+   - Click "Go" để chạy
+
+4. Kiểm tra file config/db.php:
+   - DB_HOST: 'localhost' (hoặc IP MySQL của bạn)
+   - DB_USER: 'root' (hoặc user MySQL của bạn)
+   - DB_PASS: '' (hoặc password MySQL của bạn)
+   - DB_NAME: 'telegram_bot_system' (đã đúng)
+
+BƯỚC 3: CHẠY DỰ ÁN
+───────────────────────────────────────────────────────────
+
+CÁCH 1: Sử dụng XAMPP/WAMP
+---------------------------
+1. Copy thư mục "block" vào:
+   - XAMPP: C:\xampp\htdocs\block
+   - WAMP: C:\wamp\www\block
+
+2. Khởi động Apache trong XAMPP/WAMP
+
+3. Mở trình duyệt và truy cập:
+   http://localhost/block/index.php
+   hoặc
+   http://localhost/block/
+
+CÁCH 2: Sử dụng PHP Built-in Server (Khuyến nghị cho dev)
+---------------------------
+1. Mở Command Prompt hoặc Terminal
+
+2. Di chuyển vào thư mục dự án:
+   cd F:\block
+
+3. Chạy lệnh:
+   php -S localhost:8000
+
+4. Mở trình duyệt và truy cập:
+   http://localhost:8000/index.php
+
+BƯỚC 4: KIỂM TRA
+───────────────────────────────────────────────────────────
+✓ Trang Dashboard hiển thị
+✓ Menu sidebar hoạt động
+✓ Có thể xem danh sách Users, Payments, etc.
+✓ Không có lỗi kết nối database
+
+LỖI THƯỜNG GẶP:
+───────────────────────────────────────────────────────────
+
+❌ "Connection failed"
+   → Kiểm tra MySQL đã chạy chưa
+   → Kiểm tra thông tin trong config/db.php
+
+❌ "Table doesn't exist"
+   → Chưa import SQL schema
+   → Kiểm tra tên database đúng chưa
+
+❌ "404 Not Found" hoặc trang trắng
+   → Kiểm tra đường dẫn file index.php
+   → Kiểm tra PHP errors trong PHP error log
+
+❌ CSS/JS không load
+   → Kiểm tra đường dẫn trong assets/
+   → Mở Developer Tools (F12) xem console errors
+
+═══════════════════════════════════════════════════════════
+Chúc bạn thành công! 🚀
+═══════════════════════════════════════════════════════════
+

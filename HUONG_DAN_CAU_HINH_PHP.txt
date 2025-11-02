@@ -1,0 +1,93 @@
+═══════════════════════════════════════════════════════════
+  HƯỚNG DẪN THÊM PHP VÀO ENVIRONMENT VARIABLES
+═══════════════════════════════════════════════════════════
+
+CÁCH 1: QUA GIAO DIỆN WINDOWS (Khuyến nghị)
+───────────────────────────────────────────────────────────
+
+1. Mở System Properties:
+   - Nhấn Windows + R
+   - Gõ: sysdm.cpl
+   - Nhấn Enter
+   
+   HOẶC:
+   
+   - Click phải vào "This PC" → Properties
+   - Click "Advanced system settings"
+   - Tab "Advanced" → Click "Environment Variables..."
+
+2. Thêm PATH:
+   - Trong phần "System variables" (hoặc User variables)
+   - Tìm và chọn biến "Path"
+   - Click "Edit..."
+   - Click "New"
+   - Thêm: C:\xampp\php
+   - Click "OK" tất cả các cửa sổ
+
+3. Kiểm tra:
+   - Mở CMD mới (quan trọng: phải mở CMD mới!)
+   - Gõ: php -v
+   - Nếu hiển thị version PHP → THÀNH CÔNG! ✓
+
+═══════════════════════════════════════════════════════════
+
+CÁCH 2: QUA COMMAND LINE (Nhanh hơn)
+───────────────────────────────────────────────────────────
+
+1. Mở CMD với quyền Administrator:
+   - Windows + X
+   - Chọn "Windows PowerShell (Admin)" hoặc "Command Prompt (Admin)"
+
+2. Chạy lệnh:
+   
+   setx PATH "%PATH%;C:\xampp\php" /M
+   
+   (Lưu ý: /M để thêm vào System variables)
+   
+   HOẶC nếu muốn thêm vào User variables:
+   
+   setx PATH "%PATH%;C:\xampp\php"
+
+3. Đóng và mở lại CMD
+4. Kiểm tra: php -v
+
+═══════════════════════════════════════════════════════════
+
+CÁC ĐƯỜNG DẪN KHUYẾN NGHỊ THÊM:
+───────────────────────────────────────────────────────────
+
+✓ C:\xampp\php          → Để chạy lệnh php
+✓ C:\xampp\mysql\bin    → Để chạy lệnh mysql (tùy chọn)
+
+═══════════════════════════════════════════════════════════
+
+LƯU Ý QUAN TRỌNG:
+───────────────────────────────────────────────────────────
+
+⚠ Sau khi thêm PATH, BẮT BUỘC phải:
+   - Đóng TẤT CẢ cửa sổ CMD/PowerShell hiện tại
+   - Mở CMD/PowerShell MỚI
+   - Mới kiểm tra được: php -v
+
+⚠ Nếu đã có XAMPP Control Panel chạy:
+   - Bạn có thể dùng trực tiếp từ XAMPP
+   - Không cần thêm PATH (nhưng khuyến nghị thêm để tiện)
+
+═══════════════════════════════════════════════════════════
+
+KIỂM TRA SAU KHI THÊM:
+───────────────────────────────────────────────────────────
+
+1. Mở CMD mới
+2. Chạy: php -v
+   → Phải hiển thị version PHP (ví dụ: PHP 8.1.10...)
+
+3. Chạy: php -S localhost:8000
+   → Server sẽ chạy tại http://localhost:8000
+
+4. Nếu thành công:
+   ✓ Bạn có thể chạy file start.bat
+   ✓ Hoặc chạy: php -S localhost:8000 từ bất kỳ đâu
+
+═══════════════════════════════════════════════════════════
+
