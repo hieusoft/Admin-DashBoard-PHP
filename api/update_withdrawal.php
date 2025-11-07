@@ -57,16 +57,6 @@ if ($status === 'approved') {
 
 $success = $stmt->execute();
 
-if ($success && $status === 'approved') {
-    $reset = $conn->prepare("
-        UPDATE affiliate_referrals 
-        SET commission_usd = 0 
-        WHERE referrer_id = ?
-    ");
-    $reset->bind_param('i', $user_id);
-    $reset->execute();
-    $reset->close();
-}
 
 echo json_encode([
     'success' => $success,

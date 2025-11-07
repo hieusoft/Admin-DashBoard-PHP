@@ -1,27 +1,15 @@
 // Navigation
 document.addEventListener('DOMContentLoaded', function() {
-    // Log for debugging
-    console.log('JavaScript loaded');
-    console.log('Current pages:', document.querySelectorAll('.page').length);
-    
-    // Handle menu item clicks
+    // Handle menu item active state
     const menuItems = document.querySelectorAll('.menu-item');
-    console.log('Menu items found:', menuItems.length);
+    const currentUrl = window.location.href;
     
-    // For server-side routing, menu items with href will navigate naturally
-    // Only handle if there's no href or for special cases
     menuItems.forEach(item => {
         const href = item.getAttribute('href');
         const pageId = item.getAttribute('data-page');
         
-        // If it has a proper href with index.php, navigation will work server-side
-        // Just update active state on page load
-        if (pageId) {
-            // Highlight active menu item based on current page
-            const currentUrl = window.location.href;
-            if (href && currentUrl.includes('page=' + pageId)) {
-                item.classList.add('active');
-            }
+        if (pageId && href && currentUrl.includes('page=' + pageId)) {
+            item.classList.add('active');
         }
     });
 
@@ -31,19 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
-    
-    // Debug: Show current active page
-    const activePage = document.querySelector('.page.active');
-    if (activePage) {
-        console.log('Active page found:', activePage.id);
-    } else {
-        console.warn('No active page found!');
-    }
 });
 
 function showPage(pageId) {
-    console.log('Showing page:', pageId);
-    
     // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -53,9 +31,6 @@ function showPage(pageId) {
     const page = document.getElementById(pageId);
     if (page) {
         page.classList.add('active');
-        console.log('Page shown:', pageId);
-    } else {
-        console.error('Page not found:', pageId);
     }
 }
 
@@ -72,59 +47,95 @@ function closeModal() {
     });
 }
 
-// Form handling
-function handleFormSubmit(formId, apiEndpoint, successCallback) {
+// Form handling - Generic API call function
+async function apiCall(endpoint, method = 'POST', data = null, options = {}) {
+    try {
+        const config = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        };
+        
+        if (data && method !== 'GET') {
+            config.body = JSON.stringify(data);
+        }
+        
+        const response = await fetch(endpoint, config);
+        const result = await response.json();
+        
+        return result;
+    } catch (error) {
+        console.error('API Error:', error);
+        return {
+            success: false,
+            message: 'Có lỗi xảy ra khi xử lý yêu cầu'
+        };
+    }
+}
+
+// Form handling - Generic form submit handler
+function handleFormSubmit(formId, apiEndpoint, successCallback, errorCallback) {
     const form = document.getElementById(formId);
     if (!form) return;
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        e.stopPropagation();
         
         const formData = new FormData(form);
         const data = Object.fromEntries(formData);
         
-        try {
-            const response = await fetch(apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                if (successCallback) successCallback(result);
+        const result = await apiCall(apiEndpoint, 'POST', data);
+        
+        if (result.success) {
+            if (successCallback) {
+                successCallback(result);
+            } else {
                 closeModal();
                 form.reset();
-                // Reload page data
-                loadPageData();
-            } else {
-                alert('Error: ' + (result.message || 'Có lỗi xảy ra'));
+                location.reload();
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Có lỗi xảy ra khi xử lý yêu cầu');
+        } else {
+            const message = result.message || 'Có lỗi xảy ra';
+            if (errorCallback) {
+                errorCallback(result);
+            } else {
+                alert('Error: ' + message);
+            }
         }
     });
 }
 
-// Delete confirmation
-function confirmDelete(message, deleteCallback) {
-    if (confirm(message || 'Bạn có chắc chắn muốn xóa?')) {
-        if (deleteCallback) deleteCallback();
+// Delete confirmation with API call
+async function confirmDelete(message, apiEndpoint, data, successCallback) {
+    if (!confirm(message || 'Bạn có chắc chắn muốn xóa?')) {
+        return;
+    }
+    
+    const result = await apiCall(apiEndpoint, 'POST', data);
+    
+    if (result.success) {
+        if (successCallback) {
+            successCallback(result);
+        } else {
+            location.reload();
+        }
+    } else {
+        alert('Error: ' + (result.message || 'Có lỗi xảy ra khi xóa'));
     }
 }
 
-// Load page data
-function loadPageData() {
-    const activePage = document.querySelector('.page.active');
-    if (!activePage) return;
-    
-    const pageId = activePage.id;
-    // This will be implemented per page
-    console.log('Loading data for page:', pageId);
+// Show notification (can be enhanced with toast library)
+function showNotification(message, type = 'success') {
+    // Simple alert for now, can be replaced with toast notification
+    if (type === 'error') {
+        alert('Error: ' + message);
+    } else {
+        // Could show success message
+        console.log(message);
+    }
 }
 
 // Format date

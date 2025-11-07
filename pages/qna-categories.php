@@ -42,22 +42,22 @@ closeDBConnection($conn);
                                 <td>
                                     <div class="action-buttons">
                                         <!-- VIEW QnA -->
-                                        <div class="action-btn" style="background:#4361ee;" 
+                                        <div class="action-btn btn-primary" 
                                              onclick="openViewModal(<?php echo $cat['category_id']; ?>, '<?php echo addslashes($cat['category_name']); ?>')"
                                              title="Xem QnA">
-                                            View
+                                            <i class="fas fa-eye"></i>
                                         </div>
                                         <!-- EDIT -->
-                                        <div class="action-btn" style="background:#17a2b8;" 
+                                        <div class="action-btn btn-info" 
                                              onclick="openEditModal(<?php echo $cat['category_id']; ?>, '<?php echo addslashes($cat['category_name']); ?>', <?php echo $cat['is_active']; ?>)"
                                              title="Sửa">
-                                            Edit
+                                            <i class="fas fa-edit"></i>
                                         </div>
                                         <!-- DELETE -->
-                                        <div class="action-btn" style="background:#dc3545;" 
+                                        <div class="action-btn btn-danger" 
                                              onclick="deleteCategory(<?php echo $cat['category_id']; ?>)"
                                              title="Xóa">
-                                            Delete
+                                            <i class="fas fa-trash"></i>
                                         </div>
                                     </div>
                                 </td>
@@ -86,7 +86,7 @@ closeDBConnection($conn);
         <div class="modal-body">
             <form id="addCategoryForm" onsubmit="return false;">
                 <div class="form-group">
-                    <label>Tên Category <span style="color:red">*</span></label>
+                    <label>Tên Category <span class="required-mark">*</span></label>
                     <input type="text" name="category_name" class="form-control" required placeholder="VD: Lỗi kết nối">
                 </div>
                 <div class="form-group">
@@ -116,7 +116,7 @@ closeDBConnection($conn);
             <form id="editCategoryForm" onsubmit="return false;">
                 <input type="hidden" name="category_id" id="edit_category_id">
                 <div class="form-group">
-                    <label>Tên Category <span style="color:red">*</span></label>
+                    <label>Tên Category <span class="required-mark">*</span></label>
                     <input type="text" name="category_name" id="edit_category_name" class="form-control" required>
                 </div>
                 <div class="form-group">
@@ -137,7 +137,7 @@ closeDBConnection($conn);
 
 <!-- === MODAL XEM QnA TRONG CATEGORY === -->
 <div id="viewQnaModal" class="modal">
-    <div class="modal-content" style="max-width: 800px;">
+    <div class="modal-content large">
         <div class="modal-header">
             <h3 id="viewModalTitle">QnA trong Category</h3>
             <button class="modal-close" onclick="closeModal()">×</button>
@@ -167,11 +167,11 @@ closeDBConnection($conn);
             <form id="addQnaForm" onsubmit="return false;">
                 <input type="hidden" name="category_id" id="add_qna_category_id">
                 <div class="form-group">
-                    <label>Câu hỏi <span style="color:red">*</span></label>
+                    <label>Câu hỏi <span class="required-mark">*</span></label>
                     <input type="text" name="question" class="form-control" required placeholder="VD: Làm sao để kết nối ví?">
                 </div>
                 <div class="form-group">
-                    <label>Câu trả lời <span style="color:red">*</span></label>
+                    <label>Câu trả lời <span class="required-mark">*</span></label>
                     <textarea name="answer" class="form-control" rows="4" required placeholder="Nhập câu trả lời..."></textarea>
                 </div>
             </form>

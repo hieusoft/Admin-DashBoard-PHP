@@ -48,12 +48,14 @@ closeDBConnection($conn);
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <div class="action-btn" style="background-color: var(--info-color);" 
-                                             onclick="editPlan(<?php echo $plan['plan_id']; ?>)">
+                                        <div class="action-btn btn-info" 
+                                             onclick="editPlan(<?php echo $plan['plan_id']; ?>)"
+                                             title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </div>
-                                        <div class="action-btn" style="background-color: var(--danger-color);"
-                                             onclick="deletePlan(<?php echo $plan['plan_id']; ?>)">
+                                        <div class="action-btn btn-danger"
+                                             onclick="deletePlan(<?php echo $plan['plan_id']; ?>)"
+                                             title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </div>
                                     </div>
@@ -153,7 +155,7 @@ closeDBConnection($conn);
                 <input type="hidden" name="plan_id" id="edit_plan_id">
                 <div class="form-group">
                     <label>Plan ID</label>
-                    <input type="number" id="edit_display_plan_id" class="form-control" disabled style="background-color: #f5f5f5;">
+                    <input type="number" id="edit_display_plan_id" class="form-control disabled-input" disabled>
                 </div>
                 <div class="form-group">
                     <label>Plan Name</label>

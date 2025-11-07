@@ -2,21 +2,30 @@
 require_once __DIR__ . '/../config/db.php';
 $conn = getDBConnection();
 
-$page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+$page = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-$totalResult = $conn->query("SELECT COUNT(*) as total FROM affiliate_withdrawals");
+// Tổng số withdrawals - Prepared statement
+$stmt = $conn->prepare("SELECT COUNT(*) as total FROM affiliate_withdrawals");
+$stmt->execute();
+$totalResult = $stmt->get_result();
 $total = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($total / $perPage);
+$totalPages = max(1, ceil($total / $perPage));
 
-$withdrawals = $conn->query("
-    SELECT aw.*, u.username
+// Lấy danh sách withdrawals - Prepared statement + chỉ SELECT columns cần thiết
+$withdrawalsQuery = "
+    SELECT aw.withdraw_id, aw.user_id, aw.amount, aw.wallet_address, 
+           aw.status, aw.tx_hash, aw.created_at, u.username
     FROM affiliate_withdrawals aw
     LEFT JOIN users u ON aw.user_id = u.user_id
     ORDER BY aw.created_at DESC
-    LIMIT $perPage OFFSET $offset
-");
+    LIMIT ? OFFSET ?
+";
+$stmt = $conn->prepare($withdrawalsQuery);
+$stmt->bind_param('ii', $perPage, $offset);
+$stmt->execute();
+$withdrawals = $stmt->get_result();
 
 closeDBConnection($conn);
 ?>
@@ -69,15 +78,15 @@ closeDBConnection($conn);
                                 <td>
                                     <div class="action-buttons">
                                         <?php if ($wd['status'] == 'pending'): ?>
-                                            <div class="action-btn" style="background:#28a745;" 
+                                            <div class="action-btn btn-success" 
                                                  onclick="openUpdateModal(<?php echo $wd['withdraw_id']; ?>, 'approve')"
                                                  title="Approve">
-                                                Approve
+                                                <i class="fas fa-check"></i>
                                             </div>
-                                            <div class="action-btn" style="background:#dc3545;" 
+                                            <div class="action-btn btn-danger" 
                                                  onclick="openUpdateModal(<?php echo $wd['withdraw_id']; ?>, 'reject')"
                                                  title="Reject">
-                                                Reject
+                                                <i class="fas fa-times"></i>
                                             </div>
                                         <?php else: ?>
                                             <em class="text-muted">Done</em>
@@ -132,7 +141,7 @@ closeDBConnection($conn);
                 <input type="hidden" name="withdraw_id" id="modal_withdraw_id">
                 <input type="hidden" name="action" id="modal_action">
 
-                <div class="form-group" id="txHashGroup" style="display:none;">
+                <div class="form-group form-group-hidden" id="txHashGroup">
                     <label>Transaction Hash (TX Hash)</label>
                     <input type="text" name="tx_hash" id="modal_tx_hash" class="form-control" 
                            placeholder="e.g. 0x123abc...">

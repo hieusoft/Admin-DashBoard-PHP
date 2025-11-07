@@ -37,28 +37,30 @@ $stats['plans_on_sale'] = safeCount($conn, "
 ", "Count sale plans");
 
 // === 2. PAYMENTS THÀNH CÔNG ===
-$recentPayments = $conn->query("
+$recentPaymentsQuery = "
     SELECT p.amount, p.currency, u.username, p.created_at
     FROM payments p
-    JOIN users u ON p.user_id = u.user_id
+    INNER JOIN users u ON p.user_id = u.user_id
     WHERE p.status = 'success'
     ORDER BY p.created_at DESC
     LIMIT 5
-");
+";
+$recentPayments = $conn->query($recentPaymentsQuery);
 if (!$recentPayments) {
     error_log("SQL Error (recent payments): " . $conn->error);
     $recentPayments = false;
 }
 
 // === 3. RÚT TIỀN ĐANG CHỜ ===
-$pendingWithdrawals = $conn->query("
+$pendingWithdrawalsQuery = "
     SELECT aw.withdraw_id, aw.amount, u.username, aw.created_at
     FROM affiliate_withdrawals aw
-    JOIN users u ON aw.user_id = u.user_id
+    INNER JOIN users u ON aw.user_id = u.user_id
     WHERE aw.status = 'pending'
     ORDER BY aw.created_at DESC
     LIMIT 5
-");
+";
+$pendingWithdrawals = $conn->query($pendingWithdrawalsQuery);
 if (!$pendingWithdrawals) {
     error_log("SQL Error (pending withdrawals): " . $conn->error);
     $pendingWithdrawals = false;
@@ -283,85 +285,3 @@ closeDBConnection($conn);
 
     </div>
 </div>
-
-<!-- === CSS ĐẸP & RESPONSIVE === -->
-<style>
-.stats-cards { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
-    gap: 20px; 
-    margin-bottom: 30px; 
-}
-.stat-card { 
-    background: white; 
-    border-radius: 12px; 
-    padding: 20px; 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-    display: flex; 
-    align-items: center; 
-    transition: all 0.2s; 
-}
-.stat-card:hover { transform: translateY(-3px); }
-.stat-icon { 
-    width: 56px; height: 56px; border-radius: 12px; 
-    display: flex; align-items: center; justify-content: center; 
-    color: white; font-size: 24px; margin-right: 16px; 
-}
-.stat-info h3 { margin: 0; font-size: 28px; font-weight: 600; }
-.stat-info p { margin: 4px 0 0; color: #666; font-size: 14px; }
-
-.overview-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-    gap: 20px; 
-}
-.card-header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    padding-bottom: 10px; border-bottom: 1px solid #eee; 
-}
-.card-header h3 { margin: 0; font-size: 18px; }
-.badge { 
-    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; 
-    text-transform: uppercase; 
-}
-.badge.success { background: #d4edda; color: #155724; }
-.badge.warning { background: #fff3cd; color: #856404; }
-.badge.sale { background: #f8d7da; color: #721c24; }
-.badge.info { background: #d1ecf1; color: #0c5460; }
-
-.activity-table { width: 100%; border-collapse: collapse; }
-.activity-table td { 
-    padding: 10px 6px; border-bottom: 1px dashed #eee; font-size: 14px; 
-}
-.activity-table tr:last-child td { border-bottom: none; }
-.activity-table .time { width: 70px; color: #555; font-weight: 500; }
-.activity-table .user { color: #1a1a1a; }
-.activity-table .amount { font-weight: 600; text-align: right; }
-.text-success { color: #28a745; }
-.text-warning { color: #ffc107; }
-
-.sale-packages { display: flex; flex-direction: column; gap: 12px; }
-.sale-item { 
-    background: #f8f9fa; padding: 12px; border-radius: 8px; 
-    border-left: 4px solid #f72585; 
-}
-.package-name { font-size: 15px; margin-bottom: 6px; }
-.prices { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.original { text-decoration: line-through; color: #999; font-size: 13px; }
-.sale-price { font-weight: 600; color: #d62828; font-size: 16px; }
-.discount { background: #d62828; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-.end-date { margin-top: 4px; font-size: 12px; color: #666; }
-
-.small-link { color: #007bff; text-decoration: none; font-size: 11px; margin-left: 6px; }
-.small-link:hover { text-decoration: underline; }
-
-.btn-sm { padding: 4px 8px; font-size: 12px; }
-.btn-outline-primary { 
-    color: #4361ee; border: 1px solid #4361ee; 
-}
-.btn-outline-primary:hover { 
-    background: #4361ee; color: white; 
-}
-
-.empty-state { text-align: center; color: #999; padding: 20px; font-style: italic; }
-</style>

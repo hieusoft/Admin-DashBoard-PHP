@@ -30,9 +30,12 @@
         </a>
         <a href="index.php?page=qna-categories" class="menu-item <?php echo ($currentPage == 'qna-categories') ? 'active' : ''; ?>" data-page="qna-categories">
             <i class="fas fa-folder"></i>
+            <span>QnA Categories</span>
+        </a>
+        <a href="index.php?page=qna" class="menu-item <?php echo ($currentPage == 'qna') ? 'active' : ''; ?>" data-page="qna">
+            <i class="fas fa-question-circle"></i>
             <span>QnA</span>
         </a>
-       
         <a href="index.php?page=system-logs" class="menu-item <?php echo ($currentPage == 'system-logs') ? 'active' : ''; ?>" data-page="system-logs">
             <i class="fas fa-clipboard-list"></i>
             <span>System Logs</span>

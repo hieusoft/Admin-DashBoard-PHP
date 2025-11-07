@@ -3,23 +3,60 @@ require_once __DIR__ . '/../config/db.php';
 
 $conn = getDBConnection();
 
-$page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+$page = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
+$search = trim($_GET['search'] ?? '');
+$searchParam = $search !== '' ? "%$search%" : '';
 
-// Tổng số payment
-$totalResult = $conn->query("SELECT COUNT(*) as total FROM payments");
+// Xây dựng điều kiện tìm kiếm
+$whereClause = '';
+$countParams = [];
+$countTypes = '';
+$paymentsParams = [];
+$paymentsTypes = '';
+
+if ($search !== '') {
+    $whereClause = "WHERE (p.payment_id LIKE ? OR p.order_id LIKE ? OR p.user_id LIKE ? OR p.status LIKE ? OR sp.name LIKE ?)";
+    $countParams = [$searchParam, $searchParam, $searchParam, $searchParam, $searchParam];
+    $countTypes = 'sssss';
+    $paymentsParams = [$searchParam, $searchParam, $searchParam, $searchParam, $searchParam];
+    $paymentsTypes = 'sssss';
+}
+
+// Tổng số payment - Prepared statement với search
+$countQuery = "SELECT COUNT(*) as total FROM payments p LEFT JOIN subscription_plans sp ON p.plan_id = sp.plan_id $whereClause";
+$stmt = $conn->prepare($countQuery);
+if ($search !== '') {
+    $stmt->bind_param($countTypes, ...$countParams);
+}
+$stmt->execute();
+$totalResult = $stmt->get_result();
 $totalPayments = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($totalPayments / $perPage);
+$totalPages = max(1, ceil($totalPayments / $perPage));
 
-// Lấy danh sách payments
-$payments = $conn->query("
-    SELECT p.*, sp.name as plan_name
+// Lấy danh sách payments - Prepared statement + chỉ SELECT columns cần thiết
+$paymentsQuery = "
+    SELECT p.payment_id, p.order_id, p.user_id, p.plan_id, p.amount, 
+           p.currency, p.method, p.status, p.created_at,
+           sp.name as plan_name
     FROM payments p
     LEFT JOIN subscription_plans sp ON p.plan_id = sp.plan_id
+    $whereClause
     ORDER BY p.created_at DESC
-    LIMIT $perPage OFFSET $offset
-");
+    LIMIT ? OFFSET ?
+";
+$stmt = $conn->prepare($paymentsQuery);
+
+if ($search !== '') {
+    $bindParams = array_merge($paymentsParams, [$perPage, $offset]);
+    $bindTypes = $paymentsTypes . 'ii';
+    $stmt->bind_param($bindTypes, ...$bindParams);
+} else {
+    $stmt->bind_param('ii', $perPage, $offset);
+}
+$stmt->execute();
+$payments = $stmt->get_result();
 
 closeDBConnection($conn);
 ?>
@@ -30,6 +67,36 @@ closeDBConnection($conn);
             <h2>Quản lý Payments</h2>
             <!-- ĐÃ XÓA NÚT "Thêm Payment" -->
         </div>
+
+        <!-- Search Bar -->
+        <div class="card-body" style="padding-bottom: 0;">
+            <form method="get" id="searchForm">
+                <input type="hidden" name="page" value="payments">
+                <div class="search-bar">
+                    <input
+                        type="text"
+                        name="search"
+                        value="<?php echo htmlspecialchars($search); ?>"
+                        placeholder="Search by Payment ID, Order ID, User ID, Status, or Plan Name..."
+                        class="search-input"
+                    >
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <?php if ($search !== ''): ?>
+                        <a href="?page=payments" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    <?php endif; ?>
+                </div>
+                <?php if ($search !== ''): ?>
+                    <small class="search-info">
+                        Found <strong><?php echo $totalPayments; ?></strong> payment(s)
+                    </small>
+                <?php endif; ?>
+            </form>
+        </div>
+
         <div class="card-body">
             <table>
                 <thead>
@@ -65,12 +132,14 @@ closeDBConnection($conn);
                                 <td><?php echo date('d/m/Y H:i', strtotime($payment['created_at'])); ?></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <div class="action-btn" style="background-color: var(--info-color);" 
-                                             onclick="editPayment(<?php echo $payment['payment_id']; ?>)">
+                                        <div class="action-btn btn-info" 
+                                             onclick="editPayment(<?php echo $payment['payment_id']; ?>)"
+                                             title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </div>
-                                        <div class="action-btn" style="background-color: var(--danger-color);"
-                                             onclick="deletePayment(<?php echo $payment['payment_id']; ?>)">
+                                        <div class="action-btn btn-danger"
+                                             onclick="deletePayment(<?php echo $payment['payment_id']; ?>)"
+                                             title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </div>
                                     </div>
@@ -80,7 +149,11 @@ closeDBConnection($conn);
                     <?php else: ?>
                         <tr>
                             <td colspan="10" class="empty-state">
-                                Chưa có payment nào
+                                <?php if ($search !== ''): ?>
+                                    No payments found for "<strong><?php echo htmlspecialchars($search); ?></strong>"
+                                <?php else: ?>
+                                    Chưa có payment nào
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -90,23 +163,24 @@ closeDBConnection($conn);
             <!-- Phân trang -->
             <?php if ($totalPages > 1): ?>
                 <div class="pagination">
+                    <?php
+                    $baseUrl = '?page=payments' . ($search !== '' ? '&search=' . urlencode($search) : '');
+                    $startPage = max(1, $page - 2);
+                    $endPage = min($totalPages, $page + 2);
+                    ?>
                     <?php if ($page > 1): ?>
-                        <div class="page-item">
-                            <a href="?page=payments&p=<?php echo $page - 1; ?>" class="page-link">Previous</a>
-                        </div>
+                        <a href="<?php echo $baseUrl; ?>&p=1" class="page-link">First</a>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $page - 1; ?>" class="page-link">Prev</a>
                     <?php endif; ?>
-                    <?php for($i = 1; $i <= $totalPages; $i++): ?>
-                        <div class="page-item">
-                            <a href="?page=payments&p=<?php echo $i; ?>" 
-                               class="page-link <?php echo $i == $page ? 'active' : ''; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </div>
+                    <?php for($i = $startPage; $i <= $endPage; $i++): ?>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $i; ?>" 
+                           class="page-link <?php echo $i == $page ? 'active' : ''; ?>">
+                            <?php echo $i; ?>
+                        </a>
                     <?php endfor; ?>
                     <?php if ($page < $totalPages): ?>
-                        <div class="page-item">
-                            <a href="?page=payments&p=<?php echo $page + 1; ?>" class="page-link">Next</a>
-                        </div>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $page + 1; ?>" class="page-link">Next</a>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $totalPages; ?>" class="page-link">Last</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>

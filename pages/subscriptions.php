@@ -2,24 +2,63 @@
 require_once __DIR__ . '/../config/db.php';
 $conn = getDBConnection();
 
-$page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+$page = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
+$search = trim($_GET['search'] ?? '');
+$searchParam = $search !== '' ? "%$search%" : '';
 
-$totalResult = $conn->query("SELECT COUNT(*) as total FROM subscriptions");
+// Xây dựng điều kiện tìm kiếm
+$whereClause = '';
+$countParams = [];
+$countTypes = '';
+$subscriptionsParams = [];
+$subscriptionsTypes = '';
+
+if ($search !== '') {
+    $whereClause = "WHERE (s.sub_id LIKE ? OR s.user_id LIKE ? OR u.username LIKE ? OR s.status LIKE ?)";
+    $countParams = [$searchParam, $searchParam, $searchParam, $searchParam];
+    $countTypes = 'ssss';
+    $subscriptionsParams = [$searchParam, $searchParam, $searchParam, $searchParam];
+    $subscriptionsTypes = 'ssss';
+}
+
+// Tổng số subscriptions - Prepared statement với search
+$countQuery = "SELECT COUNT(*) as total FROM subscriptions s LEFT JOIN users u ON s.user_id = u.user_id $whereClause";
+$stmt = $conn->prepare($countQuery);
+if ($search !== '') {
+    $stmt->bind_param($countTypes, ...$countParams);
+}
+$stmt->execute();
+$totalResult = $stmt->get_result();
 $totalSubs = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($totalSubs / $perPage);
+$totalPages = max(1, ceil($totalSubs / $perPage));
 
-$subscriptions = $conn->query("
-    SELECT s.*, u.username
+// Lấy danh sách subscriptions - Prepared statement + chỉ SELECT columns cần thiết
+$subscriptionsQuery = "
+    SELECT s.sub_id, s.user_id, s.start_date, s.end_date, s.status, 
+           s.trial, s.created_at, u.username
     FROM subscriptions s
     LEFT JOIN users u ON s.user_id = u.user_id
+    $whereClause
     ORDER BY s.created_at DESC
-    LIMIT $perPage OFFSET $offset
-");
+    LIMIT ? OFFSET ?
+";
+$stmt = $conn->prepare($subscriptionsQuery);
 
-// Get users list for dropdown
-$users = $conn->query("SELECT user_id, username FROM users ORDER BY user_id DESC");
+if ($search !== '') {
+    $bindParams = array_merge($subscriptionsParams, [$perPage, $offset]);
+    $bindTypes = $subscriptionsTypes . 'ii';
+    $stmt->bind_param($bindTypes, ...$bindParams);
+} else {
+    $stmt->bind_param('ii', $perPage, $offset);
+}
+$stmt->execute();
+$subscriptions = $stmt->get_result();
+
+// Get users list for dropdown - Chỉ lấy 100 users gần nhất thay vì tất cả
+$usersQuery = "SELECT user_id, username FROM users ORDER BY user_id DESC LIMIT 100";
+$users = $conn->query($usersQuery);
 
 // Store users for edit modal (need to fetch all before closing connection)
 $usersArray = [];
@@ -40,6 +79,36 @@ closeDBConnection($conn);
                 <i class="fas fa-plus"></i> Thêm Subscription
             </button>
         </div>
+
+        <!-- Search Bar -->
+        <div class="card-body" style="padding-bottom: 0;">
+            <form method="get" id="searchForm">
+                <input type="hidden" name="page" value="subscriptions">
+                <div class="search-bar">
+                    <input
+                        type="text"
+                        name="search"
+                        value="<?php echo htmlspecialchars($search); ?>"
+                        placeholder="Search by Subscription ID, User ID, Username, or Status..."
+                        class="search-input"
+                    >
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <?php if ($search !== ''): ?>
+                        <a href="?page=subscriptions" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    <?php endif; ?>
+                </div>
+                <?php if ($search !== ''): ?>
+                    <small class="search-info">
+                        Found <strong><?php echo $totalSubs; ?></strong> subscription(s)
+                    </small>
+                <?php endif; ?>
+            </form>
+        </div>
+
         <div class="card-body">
             <table>
                 <thead>
@@ -71,17 +140,17 @@ closeDBConnection($conn);
                                 <td><?php echo date('d/m/Y H:i', strtotime($sub['created_at'])); ?></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <div class="action-btn" style="background-color: var(--success-color);" 
+                                        <div class="action-btn btn-success" 
                                              onclick="viewSubscriptionDetails(<?php echo $sub['sub_id']; ?>)"
                                              title="Xem chi tiết">
                                             <i class="fas fa-eye"></i>
                                         </div>
-                                        <div class="action-btn" style="background-color: var(--info-color);" 
+                                        <div class="action-btn btn-info" 
                                              onclick="editSubscription(<?php echo $sub['sub_id']; ?>)"
                                              title="Sửa">
                                             <i class="fas fa-edit"></i>
                                         </div>
-                                        <div class="action-btn" style="background-color: var(--danger-color);"
+                                        <div class="action-btn btn-danger"
                                              onclick="deleteSubscription(<?php echo $sub['sub_id']; ?>)"
                                              title="Xóa">
                                             <i class="fas fa-trash"></i>
@@ -90,36 +159,43 @@ closeDBConnection($conn);
                                 </td>
                             </tr>
                         <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="8" class="empty-state">
-                                <i class="fas fa-calendar-check"></i>
-                                <p>Chưa có subscription nào</p>
-                            </td>
-                        </tr>
-                    <?php endif; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="8" class="empty-state">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <p>
+                                        <?php if ($search !== ''): ?>
+                                            No subscriptions found for "<strong><?php echo htmlspecialchars($search); ?></strong>"
+                                        <?php else: ?>
+                                            Chưa có subscription nào
+                                        <?php endif; ?>
+                                    </p>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
                 </tbody>
             </table>
             
             <?php if ($totalPages > 1): ?>
                 <div class="pagination">
+                    <?php
+                    $baseUrl = '?page=subscriptions' . ($search !== '' ? '&search=' . urlencode($search) : '');
+                    $startPage = max(1, $page - 2);
+                    $endPage = min($totalPages, $page + 2);
+                    ?>
                     <?php if ($page > 1): ?>
-                        <div class="page-item">
-                            <a href="?page=subscriptions&p=<?php echo $page - 1; ?>" class="page-link">Previous</a>
-                        </div>
+                        <a href="<?php echo $baseUrl; ?>&p=1" class="page-link">First</a>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $page - 1; ?>" class="page-link">Prev</a>
                     <?php endif; ?>
-                    <?php for($i = 1; $i <= $totalPages; $i++): ?>
-                        <div class="page-item">
-                            <a href="?page=subscriptions&p=<?php echo $i; ?>" 
-                               class="page-link <?php echo $i == $page ? 'active' : ''; ?>">
-                                <?php echo $i; ?>
-                            </a>
-                        </div>
+                    <?php for($i = $startPage; $i <= $endPage; $i++): ?>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $i; ?>" 
+                           class="page-link <?php echo $i == $page ? 'active' : ''; ?>">
+                            <?php echo $i; ?>
+                        </a>
                     <?php endfor; ?>
                     <?php if ($page < $totalPages): ?>
-                        <div class="page-item">
-                            <a href="?page=subscriptions&p=<?php echo $page + 1; ?>" class="page-link">Next</a>
-                        </div>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $page + 1; ?>" class="page-link">Next</a>
+                        <a href="<?php echo $baseUrl; ?>&p=<?php echo $totalPages; ?>" class="page-link">Last</a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -129,7 +205,7 @@ closeDBConnection($conn);
 
 <!-- Subscription Details Modal -->
 <div id="subscriptionDetailsModal" class="modal">
-    <div class="modal-content" style="width: 800px; max-width: 95%;">
+    <div class="modal-content large">
         <div class="modal-header">
             <h3>Subscription Details</h3>
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -157,7 +233,7 @@ closeDBConnection($conn);
                 <input type="hidden" name="detail_id" id="edit_detail_id">
                 <div class="form-group">
                     <label>Detail ID</label>
-                    <input type="number" id="edit_display_detail_id" class="form-control" disabled style="background-color: #f5f5f5;">
+                    <input type="number" id="edit_display_detail_id" class="form-control disabled-input" disabled>
                 </div>
                 <div class="form-group">
                     <label>Plan</label>
@@ -269,7 +345,7 @@ closeDBConnection($conn);
                 <input type="hidden" name="sub_id" id="edit_sub_id">
                 <div class="form-group">
                     <label>Subscription ID</label>
-                    <input type="number" id="edit_display_sub_id" class="form-control" disabled style="background-color: #f5f5f5;">
+                    <input type="number" id="edit_display_sub_id" class="form-control disabled-input" disabled>
                 </div>
                 <div class="form-group">
                     <label>User</label>

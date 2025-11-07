@@ -46,11 +46,17 @@ try {
         $totalUsers = $stmt->get_result()->fetch_assoc()['total'];
         $totalPages = max(1, ceil($totalUsers / $perPage));
 
-        // === Lấy danh sách users ===
+        // === Lấy danh sách users - TỐI ƯU: Dùng LEFT JOIN thay vì subquery ===
         $usersQuery = "
             SELECT u.*,
-                   (SELECT COUNT(*) FROM users WHERE ref_by = u.user_id) as referrals_count
+                   COALESCE(ref_counts.referrals_count, 0) as referrals_count
             FROM users u
+            LEFT JOIN (
+                SELECT ref_by, COUNT(*) as referrals_count 
+                FROM users 
+                WHERE ref_by IS NOT NULL 
+                GROUP BY ref_by
+            ) ref_counts ON u.user_id = ref_counts.ref_by
             $whereClause
             ORDER BY COALESCE(u.created_at, '1970-01-01') DESC
             LIMIT ? OFFSET ?
@@ -91,25 +97,25 @@ closeDBConnection($conn);
         <div class="card-body" style="padding-bottom: 0;">
             <form method="get" id="searchForm">
                 <input type="hidden" name="page" value="users">
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="search-bar">
                     <input
                         type="text"
                         name="search"
                         value="<?php echo htmlspecialchars($search); ?>"
                         placeholder="Search by User ID or Username..."
-                        style="flex: 1; min-width: 250px; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;"
+                        class="search-input"
                     >
-                    <button type="submit" class="btn btn-primary" style="padding: 10px 18px;">
-                        Search
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
                     </button>
                     <?php if ($search !== ''): ?>
-                        <a href="?page=users" class="btn btn-secondary" style="padding: 10px 16px;">
-                            Clear Filter
+                        <a href="?page=users" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
                         </a>
                     <?php endif; ?>
                 </div>
                 <?php if ($search !== ''): ?>
-                    <small style="color: #555; margin-top: 4px; display: block;">
+                    <small class="search-info">
                         Found <strong><?php echo $totalUsers; ?></strong> user(s)
                     </small>
                 <?php endif; ?>
@@ -172,17 +178,17 @@ closeDBConnection($conn);
                                     </td>
                                     <td>
                                         <div class="action-buttons">
-                                            <div class="action-btn"  style="background-color: var(--success-color);"
+                                            <div class="action-btn btn-success"
                                                  onclick="viewUserReferrals(<?php echo $user['user_id']; ?>)"
                                                  title="View Referrals">
                                                  <i class="fas fa-eye"></i>
                                             </div>
-                                            <div class="action-btn"  style="background-color: var(--info-color);" 
+                                            <div class="action-btn btn-info" 
                                                  onclick="editUser(<?php echo $user['user_id']; ?>)"
                                                  title="Edit">
                                                  <i class="fas fa-edit"></i>
                                             </div>
-                                            <div class="action-btn" style="background-color: var(--danger-color);"
+                                            <div class="action-btn btn-danger"
                                                  onclick="deleteUser(<?php echo $user['user_id']; ?>)"
                                                  title="Delete">
                                                  <i class="fas fa-trash"></i>
@@ -234,7 +240,7 @@ closeDBConnection($conn);
 </div>
 <!-- User Referrals Modal -->
 <div id="userReferralsModal" class="modal">
-    <div class="modal-content" style="width: 800px; max-width: 95%;">
+    <div class="modal-content large">
         <div class="modal-header">
             <h3>Affiliate Referrals</h3>
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -316,7 +322,7 @@ closeDBConnection($conn);
                 <input type="hidden" name="user_id" id="edit_user_id">
                 <div class="form-group">
                     <label>User ID</label>
-                    <input type="number" id="edit_display_user_id" class="form-control" disabled style="background-color: #f5f5f5;">
+                    <input type="number" id="edit_display_user_id" class="form-control disabled-input" disabled>
                 </div>
                 <div class="form-group">
                     <label>Username</label>
@@ -384,34 +390,34 @@ function viewUserReferrals(userId) {
                 html += '<div class="card-body">';
                 
                 if (data.referrals && data.referrals.length > 0) {
-                    html += '<table style="width: 100%;">';
+                    html += '<table class="detail-table">';
                     html += '<thead><tr>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">ID</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Referrer</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Referred</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Commission (USD)</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Status</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Ngày tạo</th>';
-                    html += '<th style="padding: 8px; border-bottom: 1px solid #ddd;">Hành động</th>';
+                    html += '<th>ID</th>';
+                    html += '<th>Referrer</th>';
+                    html += '<th>Referred</th>';
+                    html += '<th>Commission (USD)</th>';
+                    html += '<th>Status</th>';
+                    html += '<th>Ngày tạo</th>';
+                    html += '<th>Hành động</th>';
                     html += '</tr></thead>';
                     html += '<tbody>';
                     
                     data.referrals.forEach(ref => {
                         html += '<tr>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">#' + ref.ref_id + '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">' + (ref.referrer_name || 'N/A') + '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">' + (ref.referred_name || 'N/A') + '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">$' + parseFloat(ref.commission_usd || 0).toFixed(2) + '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">';
+                        html += '<td>#' + ref.ref_id + '</td>';
+                        html += '<td>' + (ref.referrer_name || 'N/A') + '</td>';
+                        html += '<td>' + (ref.referred_name || 'N/A') + '</td>';
+                        html += '<td>$' + parseFloat(ref.commission_usd || 0).toFixed(2) + '</td>';
+                        html += '<td>';
                         html += '<span class="status-badge status-' + ref.status + '">' + ref.status.charAt(0).toUpperCase() + ref.status.slice(1) + '</span>';
                         html += '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">' + (ref.created_at ? new Date(ref.created_at).toLocaleString('vi-VN') : 'N/A') + '</td>';
-                        html += '<td style="padding: 8px; border-bottom: 1px solid #eee;">';
+                        html += '<td>' + (ref.created_at ? new Date(ref.created_at).toLocaleString('vi-VN') : 'N/A') + '</td>';
+                        html += '<td>';
                         html += '<div class="action-buttons">';
-                        html += '<div class="action-btn" style="background-color: var(--success-color); cursor: pointer;" onclick="updateReferralStatus(' + ref.ref_id + ', \'approved\')" title="Approve">';
+                        html += '<div class="action-btn btn-success" onclick="updateReferralStatus(' + ref.ref_id + ', \'approved\')" title="Approve">';
                         html += '<i class="fas fa-check"></i>';
                         html += '</div>';
-                        html += '<div class="action-btn" style="background-color: var(--warning-color); cursor: pointer;" onclick="updateReferralStatus(' + ref.ref_id + ', \'pending\')" title="Pending">';
+                        html += '<div class="action-btn btn-warning" onclick="updateReferralStatus(' + ref.ref_id + ', \'pending\')" title="Pending">';
                         html += '<i class="fas fa-clock"></i>';
                         html += '</div>';
                         html += '</div>';
@@ -421,7 +427,7 @@ function viewUserReferrals(userId) {
                     
                     html += '</tbody></table>';
                 } else {
-                    html += '<div class="empty-state" style="padding: 40px;">';
+                    html += '<div class="empty-state">';
                     html += '<i class="fas fa-handshake"></i>';
                     html += '<p>User này chưa có referral nào</p>';
                     html += '</div>';
@@ -429,7 +435,7 @@ function viewUserReferrals(userId) {
                 
                 html += '</div></div>';
             } else {
-                html += '<div style="padding: 20px; color: red;">';
+                html += '<div class="error-message">';
                 html += 'Không thể tải referrals: ' + (data.message || 'Lỗi không xác định');
                 html += '</div>';
             }
@@ -438,7 +444,7 @@ function viewUserReferrals(userId) {
         })
         .catch(error => {
             console.error('Error loading referrals:', error);
-            document.getElementById('referralsContent').innerHTML = '<div style="padding: 20px; color: red;">Có lỗi xảy ra khi tải referrals</div>';
+            document.getElementById('referralsContent').innerHTML = '<div class="error-message">Có lỗi xảy ra khi tải referrals</div>';
         });
 }
 

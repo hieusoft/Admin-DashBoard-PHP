@@ -2,21 +2,30 @@
 require_once __DIR__ . '/../config/db.php';
 $conn = getDBConnection();
 
-$page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+$page = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-$totalResult = $conn->query("SELECT COUNT(*) as total FROM qna");
+// Tổng số QnA - Prepared statement
+$stmt = $conn->prepare("SELECT COUNT(*) as total FROM qna");
+$stmt->execute();
+$totalResult = $stmt->get_result();
 $total = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($total / $perPage);
+$totalPages = max(1, ceil($total / $perPage));
 
-$qnas = $conn->query("
-    SELECT q.*, qc.category_name
+// Lấy danh sách QnA - Prepared statement + chỉ SELECT columns cần thiết
+$qnasQuery = "
+    SELECT q.qna_id, q.category_id, q.question, q.answer, q.created_at,
+           qc.category_name
     FROM qna q
     LEFT JOIN qna_category qc ON q.category_id = qc.category_id
     ORDER BY q.created_at DESC
-    LIMIT $perPage OFFSET $offset
-");
+    LIMIT ? OFFSET ?
+";
+$stmt = $conn->prepare($qnasQuery);
+$stmt->bind_param('ii', $perPage, $offset);
+$stmt->execute();
+$qnas = $stmt->get_result();
 
 closeDBConnection($conn);
 ?>
@@ -52,12 +61,14 @@ closeDBConnection($conn);
                                 <td><?php echo date('d/m/Y H:i', strtotime($q['created_at'])); ?></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <div class="action-btn" style="background-color: var(--info-color);" 
-                                             onclick="editQna(<?php echo $q['qna_id']; ?>)">
+                                        <div class="action-btn btn-info" 
+                                             onclick="editQna(<?php echo $q['qna_id']; ?>)"
+                                             title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </div>
-                                        <div class="action-btn" style="background-color: var(--danger-color);"
-                                             onclick="deleteQna(<?php echo $q['qna_id']; ?>)">
+                                        <div class="action-btn btn-danger"
+                                             onclick="deleteQna(<?php echo $q['qna_id']; ?>)"
+                                             title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </div>
                                     </div>
