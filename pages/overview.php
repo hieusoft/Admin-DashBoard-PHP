@@ -91,7 +91,7 @@ if (!$plansOnSale) {
 
 // === 5. USER KOL ĐANG CHỜ DUYỆT ===
 $kolUnderReview = $conn->query("
-    SELECT user_id, username, created_at
+    SELECT user_id, username, link,created_at
     FROM users
     WHERE verified_kol = 'under_review'
     ORDER BY created_at DESC
@@ -268,9 +268,10 @@ closeDBConnection($conn);
                                         <small class="text-muted d-block"><?php echo htmlspecialchars($u['user_id']); ?></small>
                                     </td>
                                     <td class="amount">
-                                        <a href="?page=users&action=view&id=<?php echo $u['user_id']; ?>" 
-                                           class="btn btn-sm btn-outline-primary">
-                                           Xem hồ sơ
+                                        <a href="<?php echo htmlspecialchars($u['link']); ?>" 
+                                        target="_blank"
+                                        class="btn btn-sm btn-outline-primary">
+                                        Xem hồ sơ
                                         </a>
                                     </td>
                                 </tr>
